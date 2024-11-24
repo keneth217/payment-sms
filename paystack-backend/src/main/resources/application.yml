@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: paystack
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/payment?createDatabaseIfNotExist=true
+    username: Snowbit
+    password: jfm15.ml
+  jpa:
+    hibernate:
+      ddl-auto: update
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  paystack:
+    secret:
+      key: sk_test_ec3147f18602fedb4a2a22a50c25841c99ea88b1
