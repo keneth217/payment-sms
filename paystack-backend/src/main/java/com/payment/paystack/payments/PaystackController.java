@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -20,6 +20,8 @@ import java.util.Map;
 public class PaystackController {
 
     private final PaystackService paystackService;
+    private final PaymentRepository paymentRepository;
+    private final RestTemplate restTemplate=new RestTemplate();
 
     @Value("${spring.paystack.secret.key}")
     private String secretKey;
@@ -79,5 +81,24 @@ public class PaystackController {
         byte[] hashBytes = sha512Hmac.doFinal(payload.getBytes());
         return Hex.encodeHexString(hashBytes);
     }
+
+    @GetMapping("/api/verify-transaction/{reference}")
+    public ResponseEntity<?> verifyTransaction(@PathVariable String reference) {
+        // Call Paystack's transaction verification endpoint
+        String url = "https://api.paystack.co/transaction/verify/" + reference;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + secretKey);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+        if (response.getStatusCode() == HttpStatus.OK) {
+            return ResponseEntity.ok(response.getBody());
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Verification failed");
+        }
+    }
+
 
 }
