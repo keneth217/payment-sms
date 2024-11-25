@@ -31,12 +31,12 @@ public class PaystackService {
     // Initialize Transaction
     public Map<String, Object> initializeTransaction(PaymentRequest request) throws Exception {
         String url = "https://api.paystack.co/transaction/initialize";
-
+        String callBackUrl = "https://payment-sm-front.vercel.app/payment/callback";
         // Prepare headers and payload
         Map<String, Object> payload = new HashMap<>();
         payload.put("email", request.getEmail());
         payload.put("amount", request.getAmount() * 100); // Paystack expects the amount in kobo (1 = 100 kobo)
-
+        payload.put("callback_url", callBackUrl);
 
         HttpHeaders headers = new HttpHeaders();
         headers.add("Authorization", "Bearer " + secretKey);
@@ -53,7 +53,7 @@ public class PaystackService {
                     Map<String, Object> data = (Map<String, Object>) responseBody.get("data");
                     String reference = (String) data.get("reference");
 
-                    logger.info("Transaction initialized successfully with reference: {}", reference);
+                    logger.info("Transaction initialized successfully with reference:.......................... {}", reference);
 
                     // Save the payment information to the database
                     Payment payment = new Payment();
@@ -91,6 +91,7 @@ public class PaystackService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 Map<String, Object> responseBody = response.getBody();
                 if (responseBody != null) {
+                    System.out.println(responseBody);
                     logger.info("Transaction verification successful for reference: {}", reference);
                     return responseBody;
                 } else {
@@ -111,6 +112,7 @@ public class PaystackService {
     public void updatePayment(String reference, String status, String paidAt, String channel, String createdAt, String currency, String ipAddress) {
         try {
             Payment payment = paymentRepository.findByReference(reference);
+            System.out.println("reference to verify...................."+ reference);
             if (payment != null) {
                 payment.setStatus(status);
                 payment.setPaidAt(paidAt);
