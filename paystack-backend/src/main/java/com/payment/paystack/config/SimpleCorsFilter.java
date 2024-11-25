@@ -18,8 +18,7 @@ public class SimpleCorsFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleCorsFilter.class);
     private static final List<String> ALLOWED_ORIGINS = List.of(
-            "https://shop-backend-iwr1.onrender.com",
-            "https://shop-front-sepia.vercel.app",
+            "https://payment-sm-front.vercel.app",
             "http://localhost:8080",
             "http://localhost:4200"
     );
