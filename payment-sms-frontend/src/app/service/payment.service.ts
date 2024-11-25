@@ -18,13 +18,13 @@ export interface PaymentResponse {
 })
 export class PaymentService {
   private initializeUrl = 'http://localhost:8080/api/paystack/initialize';  // For initializing payment
-  private checkStatusUrl = 'http://localhost:8080/api/paystack/check-payment-status';  // Correct endpoint for checking payment status
+  private checkStatusUrl = 'http://localhost:8080/api/paystack/verify-transaction';  // Correct endpoint for checking payment status
 
   constructor(private http: HttpClient) {}
 
   // Method to initiate payment
   payNow(email: string, amount: string): Observable<PaymentResponse> {
-    const payload = { email, amount }; // Combine email and amount into a single object
+    const payload = { email, amount }; // Combine email and amount into a single object.....
     return this.http.post<PaymentResponse>(this.initializeUrl, payload).pipe(
       catchError((error) => {
         console.error('Error in PaymentService:', error);
