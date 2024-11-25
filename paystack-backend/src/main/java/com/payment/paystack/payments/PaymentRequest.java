@@ -9,5 +9,6 @@ import lombok.*;
 @NoArgsConstructor(force = true)
 public class PaymentRequest {
     private String email;
-   private  double amount;
+        private  double amount;
+        private String callbackUrl;
 }
