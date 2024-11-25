@@ -6,22 +6,27 @@ import org.apache.commons.codec.binary.Hex;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.time.LocalDateTime;
+import java.net.URI;
 import java.util.Map;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/paystack")
 @RequiredArgsConstructor
 public class PaystackController {
 
+    private static final Logger logger = LoggerFactory.getLogger(PaystackController.class);
+
     private final PaystackService paystackService;
     private final PaymentRepository paymentRepository;
-    private final RestTemplate restTemplate=new RestTemplate();
+    private final RestTemplate restTemplate;
 
     @Value("${spring.paystack.secret.key}")
     private String secretKey;
@@ -30,16 +35,15 @@ public class PaystackController {
     @PostMapping("/initialize")
     public ResponseEntity<?> initializeTransaction(@RequestBody PaymentRequest request) {
         try {
-
             Map<String, Object> response = paystackService.initializeTransaction(request);
-            System.out.println(response);
+            logger.info("Transaction initialized successfully: {}", response);
             return ResponseEntity.ok(response);
-
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            logger.error("Error initializing transaction: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
-
+//api/paystack/webhook
     @PostMapping("/webhook")
     public ResponseEntity<String> handleWebhook(
             @RequestHeader("X-Paystack-Signature") String signature,
@@ -82,21 +86,50 @@ public class PaystackController {
         return Hex.encodeHexString(hashBytes);
     }
 
-    @GetMapping("/api/verify-transaction/{reference}")
+    // Verify transaction status with Paystack
+    @GetMapping("/verify-transaction/{reference}")
     public ResponseEntity<?> verifyTransaction(@PathVariable String reference) {
-        // Call Paystack's transaction verification endpoint
-        String url = "https://api.paystack.co/transaction/verify/" + reference;
+        System.out.println(reference);
+        try {
+            // Step 1: Verify the transaction with Paystack
+            Map<String, Object> response = paystackService.verifyTransaction(reference);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + secretKey);
+            // Log the successful transaction verification
+            logger.info("Transaction verified successfully: {}", response);
 
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            // Step 2: Check transaction status from the database
+            String transactionStatus = paymentRepository.findStatusByReference(reference);
+            System.out.println("database......................"+transactionStatus);
+            // If no status is found in the database, return an error
+            if (transactionStatus == null) {
+                logger.error("No transaction found for reference {} in the database.", reference);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Transaction not found in the database");
+            }
 
-        if (response.getStatusCode() == HttpStatus.OK) {
-            return ResponseEntity.ok(response.getBody());
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Verification failed");
+            // Extract the 'data' object from the Paystack response
+            Map<String, Object> data = (Map<String, Object>) response.get("data");
+
+            // Step 3: Access 'status' from the 'data' object in the Paystack response
+            String paystackStatus = (String) data.get("status");
+            System.out.println("paystsck......................"+paystackStatus);
+            // Step 4: Compare the Paystack status with the database status
+            if ("success".equals(paystackStatus) && "success".equals(transactionStatus)) {
+                return ResponseEntity.ok(response);
+            } else {
+                logger.error("Transaction status mismatch for reference {}: Paystack status = {}, Database status = {}",
+                        reference, paystackStatus, transactionStatus);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Transaction status mismatch");
+            }
+
+        } catch (HttpClientErrorException e) {
+            logger.error("Client error verifying transaction for reference {}: {}", reference, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error verifying transaction");
+        } catch (HttpServerErrorException e) {
+            logger.error("Server error verifying transaction for reference {}: {}", reference, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error verifying transaction");
+        } catch (Exception e) {
+            logger.error("Unexpected error verifying transaction for reference {}: {}", reference, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error verifying transaction");
         }
     }
 
