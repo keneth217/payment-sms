@@ -6,6 +6,15 @@ spring:
     url: jdbc:mysql://localhost:3306/payment?createDatabaseIfNotExist=true
     username: Snowbit
     password: jfm15.ml
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 10
+      idle-timeout: 30000
+      pool-name: HikariPool-1
+      max-lifetime: 2000000
+      connection-timeout: 30000
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,6 +26,16 @@ spring:
       hibernate:
         format_sql: true
 
+  logging:
+    level:
+      com.zaxxer.hikari: DEBUG
+      org.springframework.jdbc: DEBUG
+      org.hibernate.SQL: DEBUG
+
   paystack:
     secret:
       key: sk_test_ec3147f18602fedb4a2a22a50c25841c99ea88b1
+  twilio:
+    account-sid: your_account_sid
+    auth-token: your_auth_token
+    phone-number: your_twilio_phone_number
